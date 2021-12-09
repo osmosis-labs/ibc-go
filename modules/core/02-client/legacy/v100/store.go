@@ -44,7 +44,10 @@ func MigrateStore(ctx sdk.Context, storeKey sdk.StoreKey, cdc codec.BinaryCodec)
 		clients = append(clients, keySplit[1])
 	}
 
+	ctx.Logger().Info("Gathered all clients")
+
 	for _, clientID := range clients {
+		ctx.Logger().Info(fmt.Sprintf("Running migration for client %s", clientID))
 		clientType, _, err := types.ParseClientIdentifier(clientID)
 		if err != nil {
 			return err
@@ -168,6 +171,7 @@ func addConsensusMetadata(ctx sdk.Context, clientStore sdk.KVStore, cdc codec.Bi
 
 		heights = append(heights, types.MustParseHeight(keySplit[1]))
 	}
+	ctx.Logger().Info(fmt.Sprintf("Adding metadata to %d heights", len(heights)))
 
 	for _, height := range heights {
 		// set the iteration key and processed height
