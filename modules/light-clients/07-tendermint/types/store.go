@@ -226,6 +226,7 @@ func GetHeightFromIterationKey(iterKey []byte) exported.Height {
 // callback on each height, until stop=true is returned.
 func IterateConsensusStateAscending(clientStore sdk.KVStore, cb func(height exported.Height) (stop bool)) error {
 	iterator := sdk.KVStorePrefixIterator(clientStore, []byte(KeyIterateConsensusStatePrefix))
+	ctx.Logger().Info("iterator constructed")
 	defer iterator.Close()
 
 	for ; iterator.Valid(); iterator.Next() {

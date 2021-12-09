@@ -163,6 +163,7 @@ func addConsensusMetadata(ctx sdk.Context, clientStore sdk.KVStore, cdc codec.Bi
 	var heights []exported.Height
 	ctx.Logger().Info("getting metadata for this client")
 	iterator := sdk.KVStorePrefixIterator(clientStore, []byte(host.KeyConsensusStatePrefix))
+	ctx.Logger().Info("iterator constructed")
 
 	defer iterator.Close()
 	for ; iterator.Valid(); iterator.Next() {
