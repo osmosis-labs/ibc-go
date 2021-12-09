@@ -34,6 +34,7 @@ func MigrateStore(ctx sdk.Context, storeKey sdk.StoreKey, cdc codec.BinaryCodec)
 	// collect all clients
 	defer iterator.Close()
 	for ; iterator.Valid(); iterator.Next() {
+		ctx.Logger().Info(fmt.Sprintf("Processing client %v, %s", iterator.Key(), string(iterator.Key())))
 		keySplit := strings.Split(string(iterator.Key()), "/")
 		if keySplit[len(keySplit)-1] != host.KeyClientState {
 			continue
@@ -44,7 +45,7 @@ func MigrateStore(ctx sdk.Context, storeKey sdk.StoreKey, cdc codec.BinaryCodec)
 		clients = append(clients, keySplit[1])
 	}
 
-	ctx.Logger().Info("Gathered all clients")
+	ctx.Logger().Info(fmt.Sprintf("Gathered all clients, there are %d clients", len(clients)))
 
 	for _, clientID := range clients {
 		ctx.Logger().Info(fmt.Sprintf("Running migration for client %s", clientID))
@@ -101,6 +102,7 @@ func MigrateStore(ctx sdk.Context, storeKey sdk.StoreKey, cdc codec.BinaryCodec)
 				return err
 			}
 
+			ctx.Logger().Info(fmt.Sprintf("Beginning Prune All Expired Consensus States"))
 			if err = ibctmtypes.PruneAllExpiredConsensusStates(ctx, clientStore, cdc, tmClientState); err != nil {
 				return err
 			}
@@ -159,6 +161,7 @@ func pruneSolomachineConsensusStates(clientStore sdk.KVStore) {
 // for pruning iteration.
 func addConsensusMetadata(ctx sdk.Context, clientStore sdk.KVStore, cdc codec.BinaryCodec, clientState *ibctmtypes.ClientState) error {
 	var heights []exported.Height
+	ctx.Logger().Info("getting metadata for this client")
 	iterator := sdk.KVStorePrefixIterator(clientStore, []byte(host.KeyConsensusStatePrefix))
 
 	defer iterator.Close()
@@ -173,10 +176,12 @@ func addConsensusMetadata(ctx sdk.Context, clientStore sdk.KVStore, cdc codec.Bi
 	}
 	ctx.Logger().Info(fmt.Sprintf("Adding metadata to %d heights", len(heights)))
 
+	selfHeight := clienttypes.GetSelfHeight(ctx)
+
 	for _, height := range heights {
 		// set the iteration key and processed height
 		// these keys were not included in the SDK v0.42.0 release
-		ibctmtypes.SetProcessedHeight(clientStore, height, clienttypes.GetSelfHeight(ctx))
+		ibctmtypes.SetProcessedHeight(clientStore, height, selfHeight)
 		ibctmtypes.SetIterationKey(clientStore, height)
 	}
 

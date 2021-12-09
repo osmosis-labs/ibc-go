@@ -304,11 +304,13 @@ func PruneAllExpiredConsensusStates(
 		return false
 	}
 
+	ctx.Logger().Info("begin iterate")
 	IterateConsensusStateAscending(clientStore, pruneCb)
 	if err != nil {
 		return err
 	}
 
+	ctx.Logger().Info("begin delete")
 	for _, height := range heights {
 		deleteConsensusState(clientStore, height)
 		deleteConsensusMetadata(clientStore, height)
