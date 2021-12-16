@@ -307,10 +307,19 @@ func (k Keeper) ValidateSelfClient(ctx sdk.Context, clientState exported.ClientS
 		return sdkerrors.Wrapf(types.ErrInvalidClient, "trust-level invalid: %v", err)
 	}
 
-	expectedUbdPeriod := k.stakingKeeper.UnbondingTime(ctx)
-	if expectedUbdPeriod != tmClient.UnbondingPeriod {
-		return sdkerrors.Wrapf(types.ErrInvalidClient, "invalid unbonding period. expected: %s, got: %s",
-			expectedUbdPeriod, tmClient.UnbondingPeriod)
+	// Osmosis v6 patch. If height > 300, do correct logic on fixed app.go
+	// Prior to fork height, we panic with the same error we were getting before.
+	if ctx.BlockHeight() > 300 {
+		expectedUbdPeriod := k.stakingKeeper.UnbondingTime(ctx)
+		if expectedUbdPeriod != tmClient.UnbondingPeriod {
+			return sdkerrors.Wrapf(types.ErrInvalidClient, "invalid unbonding period. expected: %s, got: %s",
+				expectedUbdPeriod, tmClient.UnbondingPeriod)
+		}
+	} else {
+		// Do the old panic, of just saying its not found.
+		// Panic came from here: https://github.com/cosmos/cosmos-sdk/blob/d0f64dff2cc370b876c82244bd46b61872d6ffa5/x/params/types/subspace.go#L170
+		key := "UnbondingTime"
+		panic(fmt.Sprintf("parameter %s not registered", key))
 	}
 
 	if tmClient.UnbondingPeriod < tmClient.TrustingPeriod {
