@@ -309,7 +309,7 @@ func (k Keeper) ValidateSelfClient(ctx sdk.Context, clientState exported.ClientS
 
 	// Osmosis v6 patch. If height > 300, do correct logic on fixed app.go
 	// Prior to fork height, we panic with the same error we were getting before.
-	if ctx.BlockHeight() > 300 {
+	if ctx.BlockHeight() > 2464000 || ctx.BlockHeight() < 2383300 {
 		expectedUbdPeriod := k.stakingKeeper.UnbondingTime(ctx)
 		if expectedUbdPeriod != tmClient.UnbondingPeriod {
 			return sdkerrors.Wrapf(types.ErrInvalidClient, "invalid unbonding period. expected: %s, got: %s",
