@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"context"
-
 	metrics "github.com/armon/go-metrics"
 
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -21,6 +20,11 @@ var (
 	_ connectiontypes.MsgServer = Keeper{}
 	_ channeltypes.MsgServer    = Keeper{}
 )
+
+// Logger returns a module-specific logger.
+func (k Keeper) Logger(ctx sdk.Context) log.Logger {
+	return ctx.Logger().With("module", "x/ibc/core")
+}
 
 // CreateClient defines a rpc handler method for MsgCreateClient.
 func (k Keeper) CreateClient(goCtx context.Context, msg *clienttypes.MsgCreateClient) (*clienttypes.MsgCreateClientResponse, error) {
@@ -447,6 +451,7 @@ func (k Keeper) RecvPacket(goCtx context.Context, msg *channeltypes.MsgRecvPacke
 // Timeout defines a rpc handler method for MsgTimeout.
 func (k Keeper) Timeout(goCtx context.Context, msg *channeltypes.MsgTimeout) (*channeltypes.MsgTimeoutResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
+	k.Logger(ctx).Info("timeout packet", "msg", msg)
 
 	relayer, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
@@ -485,7 +490,9 @@ func (k Keeper) Timeout(goCtx context.Context, msg *channeltypes.MsgTimeout) (*c
 	}
 
 	// Perform application logic callback
+	k.Logger(ctx).Info("calling OnTimeoutPacket")
 	err = cbs.OnTimeoutPacket(ctx, msg.Packet, relayer)
+	k.Logger(ctx).Info("called OnTimeoutPacket", "err", err)
 	if err != nil {
 		return nil, sdkerrors.Wrap(err, "timeout packet callback failed")
 	}
@@ -494,6 +501,7 @@ func (k Keeper) Timeout(goCtx context.Context, msg *channeltypes.MsgTimeout) (*c
 	if err = k.ChannelKeeper.TimeoutExecuted(ctx, cap, msg.Packet); err != nil {
 		return nil, err
 	}
+	k.Logger(ctx).Info("timeout executed", "err", err)
 
 	defer func() {
 		telemetry.IncrCounterWithLabels(
@@ -509,6 +517,7 @@ func (k Keeper) Timeout(goCtx context.Context, msg *channeltypes.MsgTimeout) (*c
 		)
 	}()
 
+	k.Logger(ctx).Info("timeout packet success")
 	return &channeltypes.MsgTimeoutResponse{Result: channeltypes.SUCCESS}, nil
 }
 

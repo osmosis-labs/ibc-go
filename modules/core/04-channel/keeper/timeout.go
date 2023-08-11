@@ -27,6 +27,7 @@ func (k Keeper) TimeoutPacket(
 	proofHeight exported.Height,
 	nextSequenceRecv uint64,
 ) error {
+	k.Logger(ctx).Info("timeout packet")
 	channel, found := k.GetChannel(ctx, packet.GetSourcePort(), packet.GetSourceChannel())
 	if !found {
 		return sdkerrors.Wrapf(
@@ -35,6 +36,7 @@ func (k Keeper) TimeoutPacket(
 		)
 	}
 
+	k.Logger(ctx).Info("timeout packet 1")
 	// NOTE: TimeoutPacket is called by the AnteHandler which acts upon the packet.Route(),
 	// so the capability authentication can be omitted here
 
@@ -59,7 +61,7 @@ func (k Keeper) TimeoutPacket(
 			channel.ConnectionHops[0],
 		)
 	}
-
+	k.Logger(ctx).Info("timeout packet 2")
 	// check that timeout height or timeout timestamp has passed on the other end
 	proofTimestamp, err := k.connectionKeeper.GetTimestampAtHeight(ctx, connectionEnd, proofHeight)
 	if err != nil {
@@ -71,9 +73,9 @@ func (k Keeper) TimeoutPacket(
 		(packet.GetTimeoutTimestamp() == 0 || proofTimestamp < packet.GetTimeoutTimestamp()) {
 		return sdkerrors.Wrap(types.ErrPacketTimeout, "packet timeout has not been reached for height or timestamp")
 	}
-
+	k.Logger(ctx).Info("timeout packet 3")
 	commitment := k.GetPacketCommitment(ctx, packet.GetSourcePort(), packet.GetSourceChannel(), packet.GetSequence())
-
+	k.Logger(ctx).Info("timeout packet 4")
 	if len(commitment) == 0 {
 		EmitTimeoutPacketEvent(ctx, packet, channel)
 		// This error indicates that the timeout has already been relayed
@@ -82,21 +84,21 @@ func (k Keeper) TimeoutPacket(
 		// prevent an entire relay transaction from failing and consuming unnecessary fees.
 		return types.ErrNoOpMsg
 	}
-
+	k.Logger(ctx).Info("timeout packet 5")
 	if channel.State != types.OPEN {
 		return sdkerrors.Wrapf(
 			types.ErrInvalidChannelState,
 			"channel state is not OPEN (got %s)", channel.State.String(),
 		)
 	}
-
+	k.Logger(ctx).Info("timeout packet 6")
 	packetCommitment := types.CommitPacket(k.cdc, packet)
-
+	k.Logger(ctx).Info("timeout packet 7")
 	// verify we sent the packet and haven't cleared it out yet
 	if !bytes.Equal(commitment, packetCommitment) {
 		return sdkerrors.Wrapf(types.ErrInvalidPacket, "packet commitment bytes are not equal: got (%v), expected (%v)", commitment, packetCommitment)
 	}
-
+	k.Logger(ctx).Info("timeout packet 8")
 	switch channel.Ordering {
 	case types.ORDERED:
 		// check that packet has not been received
@@ -120,11 +122,12 @@ func (k Keeper) TimeoutPacket(
 	default:
 		panic(sdkerrors.Wrapf(types.ErrInvalidChannelOrdering, channel.Ordering.String()))
 	}
-
+	k.Logger(ctx).Info("timeout packet 9", "err", err)
 	if err != nil {
 		return err
 	}
 
+	k.Logger(ctx).Info("timeout packet done")
 	// NOTE: the remaining code is located in the TimeoutExecuted function
 	return nil
 }
@@ -138,10 +141,12 @@ func (k Keeper) TimeoutExecuted(
 	chanCap *capabilitytypes.Capability,
 	packet exported.PacketI,
 ) error {
+	k.Logger(ctx).Info("timeout executed", "packet", packet)
 	channel, found := k.GetChannel(ctx, packet.GetSourcePort(), packet.GetSourceChannel())
 	if !found {
 		return sdkerrors.Wrapf(types.ErrChannelNotFound, "port ID (%s) channel ID (%s)", packet.GetSourcePort(), packet.GetSourceChannel())
 	}
+	k.Logger(ctx).Info("timeout executed: found")
 
 	capName := host.ChannelCapabilityPath(packet.GetSourcePort(), packet.GetSourceChannel())
 	if !k.scopedKeeper.AuthenticateCapability(ctx, chanCap, capName) {
@@ -150,8 +155,11 @@ func (k Keeper) TimeoutExecuted(
 			"caller does not own capability for channel with capability name %s", capName,
 		)
 	}
+	k.Logger(ctx).Info("timeout executed deleting")
 
 	k.deletePacketCommitment(ctx, packet.GetSourcePort(), packet.GetSourceChannel(), packet.GetSequence())
+
+	k.Logger(ctx).Info("timeout executed deleted")
 
 	if channel.Ordering == types.ORDERED {
 		channel.State = types.CLOSED
@@ -174,6 +182,7 @@ func (k Keeper) TimeoutExecuted(
 		EmitChannelClosedEvent(ctx, packet, channel)
 	}
 
+	k.Logger(ctx).Info("timeout executed done")
 	return nil
 }
 
